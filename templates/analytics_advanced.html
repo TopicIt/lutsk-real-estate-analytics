@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Розширена аналітика нерухомості Луцька</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='analytics.css') }}?v=advanced-uk">
+  <script src="{{ url_for('static', filename='analytics.js') }}?v=advanced-uk" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="title-block">
+        <p class="eyebrow">Луцьк / розширена аналітика</p>
+        <h1>Розширені фільтри</h1>
+        <p class="page-note">
+          Технічний перегляд для перевірки джерел, категорій і періодів. Основний публічний дашборд лишається простим.
+        </p>
+      </div>
+      <nav class="nav-actions" aria-label="Навігація розширеної аналітики">
+        <a class="secondary-link" href="{{ url_for('analytics') }}">Простий дашборд</a>
+        <a class="secondary-link" href="{{ url_for('admin') }}">Адмін</a>
+        <a class="secondary-link" href="{{ url_for('index') }}">Головна</a>
+      </nav>
+    </header>
+
+    <section class="controls" aria-label="Фільтри аналітики">
+      <label>
+        <span>Джерело даних</span>
+        <select id="dataSource">
+          <option value="olx">OLX</option>
+          <option value="domria">DOM.RIA</option>
+          <option value="demo">Демо</option>
+          <option value="all">Усі джерела</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Тип угоди</span>
+        <select id="dealType">
+          {% for item in filters.deal_types %}
+            <option value="{{ item.key }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>Тип нерухомості</span>
+        <select id="propertyType">
+          {% for item in filters.property_types %}
+            <option value="{{ item.key }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>Кімнати</span>
+        <select id="rooms">
+          {% for item in filters.rooms %}
+            <option value="{{ item.key }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <span>Локація</span>
+        <select id="locationScope">
+          {% for item in filters.location_scopes %}
+            <option value="{{ item.key }}">{{ item.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div class="periods" role="group" aria-label="Період">
+        <button class="period-button" data-period="7">7 днів</button>
+        <button class="period-button active" data-period="30">30 днів</button>
+        <button class="period-button" data-period="90">90 днів</button>
+        <button class="period-button" data-period="all">Увесь час</button>
+      </div>
+    </section>
+
+    <section class="metrics" aria-label="Поточні показники">
+      <article class="metric-card">
+        <span>Поточна кількість</span>
+        <strong id="currentMetric">0</strong>
+      </article>
+      <article class="metric-card">
+        <span>Зміна за 7 днів</span>
+        <strong id="change7Metric">0</strong>
+      </article>
+      <article class="metric-card">
+        <span>Зміна за 30 днів</span>
+        <strong id="change30Metric">0</strong>
+      </article>
+      <article class="metric-card">
+        <span>Тренд</span>
+        <strong id="trendMetric">Стабільно</strong>
+      </article>
+      <article class="metric-card">
+        <span>Поточне джерело</span>
+        <strong id="sourceMetric">Демо</strong>
+      </article>
+      <article class="metric-card">
+        <span>Стан джерела</span>
+        <strong id="domriaStatusMetric">Демо-режим</strong>
+      </article>
+    </section>
+
+    <section class="status-strip" aria-label="Стан збору DOM.RIA">
+      <article class="status-card">
+        <span>DOM.RIA зібрано сьогодні</span>
+        <strong id="collectedTodayMetric">0</strong>
+      </article>
+      <article class="status-card">
+        <span>DOM.RIA бракує сьогодні</span>
+        <strong id="missingTodayMetric">0</strong>
+      </article>
+      <article class="status-card status-card-wide">
+        <span>Останнє успішне оновлення DOM.RIA</span>
+        <strong id="lastUpdateMetric">Немає даних</strong>
+      </article>
+    </section>
+
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <div>
+          <h2>Оголошення в часі</h2>
+          <div class="source-legend" aria-label="Легенда джерел">
+            <span><i class="legend-dot legend-manual"></i>OLX = ручні дані</span>
+            <span><i class="legend-dot legend-real"></i>DOM.RIA = реальні дані</span>
+            <span><i class="legend-dot legend-demo"></i>Демо = тестові дані</span>
+            <span><i class="legend-dot legend-mixed"></i>Усі джерела = окремі лінії</span>
+          </div>
+        </div>
+        <p id="statusText">Завантаження даних...</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="listingChart"></canvas>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

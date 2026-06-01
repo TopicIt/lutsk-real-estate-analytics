@@ -1,0 +1,27 @@
+{
+  "api_key": "PUT_YOUR_DOMRIA_API_KEY_HERE",
+  "state_id": 18,
+  "city_id": 18,
+  "categories": {
+    "sale_apartments_all": {
+      "category": "1",
+      "realty_type": "2",
+      "operation_type": "1"
+    },
+    "rent_apartments_all": {
+      "category": "1",
+      "realty_type": "2",
+      "operation_type": "3"
+    },
+    "sale_houses_all": {
+      "category": "4",
+      "realty_type": "5",
+      "operation_type": "1"
+    },
+    "sale_commercial_all": {
+      "category": "10",
+      "realty_type": "24",
+      "operation_type": "1"
+    }
+  }
+}

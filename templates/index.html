@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dmitro / Луцьк</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='analytics.css') }}?v=source-filter">
+</head>
+<body>
+  <main class="page narrow">
+    <section class="intro">
+      <p class="eyebrow">Dmitro / Луцьк</p>
+      <h1>Особистий сайт</h1>
+      <p>Мінімальна стартова сторінка з аналітикою ринку нерухомості Луцька.</p>
+      <div class="nav-actions nav-actions-start">
+        <a class="primary-link" href="{{ url_for('analytics') }}">Аналітика</a>
+        <a class="secondary-link" href="{{ url_for('admin') }}">Адмін</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

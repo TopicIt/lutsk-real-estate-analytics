@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ручні дані OLX</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='analytics.css') }}?v=admin-uk">
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="title-block">
+        <p class="eyebrow">Луцьк / адмін</p>
+        <h1>Ручні дані OLX</h1>
+        <p class="page-note">
+          Ця сторінка потрібна для внесення ручних OLX-знімків. Вони зберігаються окремо від реальних рядків DOM.RIA і не змішуються у публічних графіках.
+        </p>
+      </div>
+      <nav class="nav-actions" aria-label="Адмін-навігація">
+        <a class="secondary-link" href="{{ url_for('analytics') }}">Аналітика</a>
+        <a class="secondary-link" href="{{ url_for('analytics_advanced') }}">Розширені фільтри</a>
+        <a class="secondary-link" href="{{ url_for('index') }}">Головна</a>
+      </nav>
+    </header>
+
+    {% if message %}
+      <div class="notice notice-success" role="status">{{ message }}</div>
+    {% endif %}
+
+    {% if errors %}
+      <div class="notice notice-error" role="alert">
+        {% for error in errors %}
+          <p>{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <section class="admin-panel" aria-label="Форма ручного рядка">
+      <h2>Додати один рядок</h2>
+      <form class="admin-form" method="post" action="{{ url_for('admin') }}">
+        <input type="hidden" name="form_kind" value="single">
+        <label>
+          <span>Джерело</span>
+          <input name="source_name" type="text" value="OLX" readonly required>
+        </label>
+
+        <label>
+          <span>Тип угоди</span>
+          <select name="deal_type" required>
+            {% for item in filters.deal_types %}
+              <option value="{{ item.key }}" {% if item.key == form.deal_type %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          <span>Тип нерухомості</span>
+          <select name="property_type" required>
+            {% for item in filters.property_types %}
+              <option value="{{ item.key }}" {% if item.key == form.property_type %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          <span>Кімнати</span>
+          <select name="rooms" required>
+            {% for item in filters.rooms %}
+              <option value="{{ item.key }}" {% if item.key == form.rooms %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          <span>Локація</span>
+          <select name="location_scope" required>
+            {% for item in filters.location_scopes %}
+              <option value="{{ item.key }}" {% if item.key == form.location_scope %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label>
+          <span>Кількість оголошень</span>
+          <input name="listings_count" type="number" min="1" step="1" value="{{ form.listings_count }}" required>
+        </label>
+
+        <label>
+          <span>Дата</span>
+          <input name="date" type="date" value="{{ form.date }}" required>
+        </label>
+
+        <button class="form-submit" type="submit">Зберегти рядок</button>
+      </form>
+    </section>
+
+    <section class="admin-panel" aria-label="Bulk-знімок OLX">
+      <div class="table-heading">
+        <h2>Щоденний OLX-знімок</h2>
+        <span>Порожні поля пропускаються</span>
+      </div>
+      <form class="bulk-form" method="post" action="{{ url_for('admin') }}">
+        <input type="hidden" name="form_kind" value="bulk">
+        <div class="bulk-common">
+          <label>
+            <span>Джерело</span>
+            <input name="bulk_source_name" type="text" value="OLX" readonly required>
+          </label>
+          <label>
+            <span>Дата</span>
+            <input name="bulk_date" type="date" value="{{ bulk_form.date }}" required>
+          </label>
+          <label>
+            <span>Локація</span>
+            <select name="bulk_location_scope" required>
+              {% for item in filters.location_scopes %}
+                <option value="{{ item.key }}" {% if item.key == bulk_form.location_scope %}selected{% endif %}>{{ item.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="form-submit" type="submit">Зберегти знімок</button>
+        </div>
+
+        <div class="bulk-grid">
+          {% for group in bulk_groups %}
+            <fieldset class="bulk-group">
+              <legend>{{ group.title }}</legend>
+              {% for field_name, label, deal_type, property_type, rooms in group.fields %}
+                <label>
+                  <span>{{ label }}</span>
+                  <input name="{{ field_name }}" type="number" min="1" step="1" inputmode="numeric">
+                </label>
+              {% endfor %}
+            </fieldset>
+          {% endfor %}
+        </div>
+      </form>
+    </section>
+
+    <section class="admin-panel" aria-label="Підозрілі ручні рядки">
+      <div class="table-heading">
+        <h2>Підозрілі або тестові ручні рядки</h2>
+        <span>{{ suspicious_entries|length }} показано</span>
+      </div>
+      <p class="section-note">Це лише діагностика. Рядки не видаляються автоматично.</p>
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Категорія</th>
+              <th>Кімнати</th>
+              <th>Локація</th>
+              <th>Оголошення</th>
+              <th>Створено</th>
+              <th>Причина</th>
+              <th>Дія</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in suspicious_entries %}
+              <tr>
+                <td>{{ entry.date }}</td>
+                <td>{{ entry.category_key }}</td>
+                <td>{{ entry.rooms }}</td>
+                <td>{{ entry.location_scope }}</td>
+                <td>{{ entry.listings_count }}</td>
+                <td>{{ entry.created_at }}</td>
+                <td>{{ entry.suspicion_reason }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('delete_manual_entry', snapshot_id=entry.id) }}">
+                    <button class="danger-button" type="submit">Видалити</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="8" class="empty-cell">Підозрілих ручних рядків не знайдено.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel" aria-label="Групи ручних знімків">
+      <div class="table-heading">
+        <h2>Останні групи ручних знімків</h2>
+        <span>{{ bulk_snapshot_groups|length }} показано</span>
+      </div>
+      <div class="table-wrap">
+        <table class="admin-table compact-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Джерело</th>
+              <th>Локація</th>
+              <th>Рядки</th>
+              <th>Останнє збереження</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for group in bulk_snapshot_groups %}
+              <tr>
+                <td>{{ group.date }}</td>
+                <td>{{ group.source }}</td>
+                <td>{{ group.location_scope }}</td>
+                <td>{{ group.rows_count }}</td>
+                <td>{{ group.latest_saved_at }}</td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="5" class="empty-cell">Ручних знімків ще немає.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-panel" aria-label="Останні ручні рядки">
+      <div class="table-heading">
+        <h2>Останні 50 ручних рядків</h2>
+        <span>{{ entries|length }} показано</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Джерело</th>
+              <th>Угода</th>
+              <th>Тип</th>
+              <th>Кімнати</th>
+              <th>Локація</th>
+              <th>Оголошення</th>
+              <th>Створено</th>
+              <th>Дія</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in entries %}
+              <tr>
+                <td>{{ entry.date }}</td>
+                <td>{{ entry.source }}</td>
+                <td>{{ entry.deal_type }}</td>
+                <td>{{ entry.property_type }}</td>
+                <td>{{ entry.rooms }}</td>
+                <td>{{ entry.location_scope }}</td>
+                <td>{{ entry.listings_count }}</td>
+                <td>{{ entry.created_at }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('delete_manual_entry', snapshot_id=entry.id) }}">
+                    <button class="danger-button" type="submit">Видалити</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="9" class="empty-cell">Ручних рядків ще немає.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

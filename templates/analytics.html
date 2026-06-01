@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Аналітика ринку нерухомості Луцька</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='analytics.css') }}?v=collection-status">
+  <script src="{{ url_for('static', filename='dashboard.js') }}?v=collection-status" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div class="title-block">
+        <p class="eyebrow">Луцьк / ринок нерухомості</p>
+        <h1>Тренди оголошень нерухомості</h1>
+        <p class="page-note">
+          Простий публічний дашборд для відстеження кількості оголошень у Луцьку.
+          DOM.RIA та OLX показані окремими лініями, без змішування джерел.
+        </p>
+      </div>
+      <nav class="nav-actions" aria-label="Навігація аналітики">
+        <a class="secondary-link" href="{{ url_for('admin') }}">Адмін</a>
+        <a class="secondary-link" href="{{ url_for('analytics_advanced') }}">Розширені фільтри</a>
+        <a class="secondary-link" href="{{ url_for('index') }}">Головна</a>
+      </nav>
+    </header>
+
+    <section class="metrics mvp-metrics" aria-label="Останні показники">
+      <article class="metric-card">
+        <span>Продаж DOM.RIA</span>
+        <strong id="domriaSaleMetric">-</strong>
+      </article>
+      <article class="metric-card">
+        <span>Продаж OLX</span>
+        <strong id="olxSaleMetric">-</strong>
+      </article>
+      <article class="metric-card">
+        <span>Оренда DOM.RIA</span>
+        <strong id="domriaRentMetric">-</strong>
+      </article>
+      <article class="metric-card">
+        <span>Оренда OLX</span>
+        <strong id="olxRentMetric">-</strong>
+      </article>
+      <article class="metric-card">
+        <span>Останнє оновлення</span>
+        <strong id="lastUpdateMetric">-</strong>
+      </article>
+    </section>
+
+    <section class="status-strip" aria-label="Статус автозбору DOM.RIA">
+      <article class="status-card">
+        <span>Останній автозбір</span>
+        <strong id="autoRunMetric">-</strong>
+      </article>
+      <article class="status-card">
+        <span>Зібрано сьогодні</span>
+        <strong id="collectedTodayMetric">-</strong>
+      </article>
+      <article class="status-card">
+        <span>Ще бракує</span>
+        <strong id="missingTodayMetric">-</strong>
+      </article>
+    </section>
+
+    <section class="chart-panel trend-panel" aria-label="Тренд продажу квартир">
+      <div class="chart-heading">
+        <div>
+          <h2>Тренд продажу квартир</h2>
+          <p>Усі кімнати, Луцьк. DOM.RIA та OLX показані окремо.</p>
+        </div>
+        <p id="saleStatusText">Завантаження даних...</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="saleTrendChart"></canvas>
+      </div>
+    </section>
+
+    <section class="chart-panel trend-panel" aria-label="Тренд оренди квартир">
+      <div class="chart-heading">
+        <div>
+          <h2>Тренд оренди квартир</h2>
+          <p>Усі кімнати, Луцьк. DOM.RIA та OLX показані окремо.</p>
+        </div>
+        <p id="rentStatusText">Завантаження даних...</p>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="rentTrendChart"></canvas>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
