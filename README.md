@@ -300,13 +300,15 @@ If Python is not on PATH, use the full Python path in `Program/script`.
 
 Do not store `domria_config.json` in GitHub or Railway. Use Railway environment variables such as `DOMRIA_API_KEY`.
 
-For the MVP, use a Railway cron job that runs:
+For the SQLite MVP on Railway, do not use a separate Railway scheduler service. Railway volumes are service-specific, so a scheduler service can write to a different `/data/real_estate.db` than the web service reads.
 
-```bash
-python scheduler.py --run-once
+Run DOM.RIA collection from the protected web admin page instead:
+
+```text
+/admin
 ```
 
-Schedule it once per day after the web service and SQLite volume are working. Test with `python scheduler.py --dry-run` before the first live run.
+Use the `Запустити збір DOM.RIA зараз` button so collection writes into the same web-service SQLite volume used by `/analytics`. A separate scheduler service should wait until the database is moved to Postgres or another shared database.
 
 ## Railway Deployment
 
@@ -358,19 +360,9 @@ Do not commit `domria_config.json`; it is for local development only and is igno
 
 ### Railway Cron
 
-Create a Railway cron job with:
+Do not configure a separate Railway cron service while the MVP uses SQLite on a Railway volume. Railway volumes are attached per service, so cron and web services can end up with different databases at the same `/data/real_estate.db` path.
 
-```bash
-python scheduler.py --run-once
-```
-
-Use the same volume and environment variables as the web service. Before enabling live collection, test the plan without calling DOM.RIA:
-
-```bash
-python scheduler.py --dry-run
-```
-
-Run the live cron command only once manually after reviewing the dry-run output.
+Use the protected `/admin` collection button for now. Revisit Railway cron after moving persistence to Postgres or another shared database.
 
 ## Data Notes
 

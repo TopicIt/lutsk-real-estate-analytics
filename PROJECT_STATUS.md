@@ -183,6 +183,7 @@ The public `/analytics` page should answer one core question: how the number of 
 - The app has no automated test suite.
 - Chart.js loads from CDN; offline/local vendoring may be better before deployment.
 - SQLite deployment on Railway needs a persistence and backup decision.
+- Railway volumes are service-specific. Do not use a separate Railway scheduler service with SQLite because it can write to a different `/data/real_estate.db` than the web service reads. Use the protected `/admin` collection action until persistence moves to Postgres or another shared database.
 - Ukrainian text in some config-derived labels may need a final encoding/copy review before public deployment.
 
 ## G. Recommended Roadmap
@@ -199,7 +200,7 @@ The public `/analytics` page should answer one core question: how the number of 
 
 ### Priority 2: Important Improvements
 
-- Add scheduled daily DOM.RIA collection.
+- Add scheduled daily DOM.RIA collection after moving from service-local SQLite volume storage to Postgres or another shared database.
 - Add a simple database backup command.
 - Vendor Chart.js locally or document the CDN dependency.
 - Clean up old demo/demo-source rows when the MVP no longer needs them, with explicit backup first.

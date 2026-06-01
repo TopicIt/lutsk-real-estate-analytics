@@ -29,6 +29,7 @@ from database import (
     storage_detailed_diagnostics,
     storage_diagnostics,
 )
+from scheduler import run_once as run_domria_collection_once
 from scraper import build_manual_snapshot
 
 
@@ -420,6 +421,50 @@ def build_public_trend(deal_type: str) -> dict:
     }
 
 
+def default_admin_bulk_form() -> dict:
+    return {
+        "source_name": "OLX",
+        "location_scope": "lutsk",
+        "date": date.today().isoformat(),
+    }
+
+
+def default_admin_form() -> dict:
+    return {
+        "source_name": "OLX",
+        "deal_type": "sale",
+        "property_type": "apartments",
+        "rooms": "all",
+        "location_scope": "lutsk",
+        "listings_count": "",
+        "date": date.today().isoformat(),
+    }
+
+
+def render_admin_page(
+    *,
+    bulk_form: dict | None = None,
+    form: dict | None = None,
+    errors: list[str] | None = None,
+    message: str | None = None,
+    collection_result: dict | None = None,
+):
+    init_db()
+    return render_template(
+        "admin.html",
+        bulk_form=bulk_form or default_admin_bulk_form(),
+        bulk_groups=BULK_OLX_GROUPS,
+        bulk_snapshot_groups=fetch_manual_snapshot_groups(20),
+        collection_result=collection_result,
+        entries=fetch_latest_manual_snapshots(50),
+        errors=errors or [],
+        filters=fetch_filter_options(),
+        form=form or default_admin_form(),
+        message=message,
+        suspicious_entries=fetch_suspicious_manual_snapshots(50),
+    )
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -443,20 +488,8 @@ def admin():
 
     init_db()
     filters = fetch_filter_options()
-    bulk_form = {
-        "source_name": "OLX",
-        "location_scope": "lutsk",
-        "date": date.today().isoformat(),
-    }
-    form = {
-        "source_name": "OLX",
-        "deal_type": "sale",
-        "property_type": "apartments",
-        "rooms": "all",
-        "location_scope": "lutsk",
-        "listings_count": "",
-        "date": date.today().isoformat(),
-    }
+    bulk_form = default_admin_bulk_form()
+    form = default_admin_form()
     errors: list[str] = []
     message = request.args.get("message")
 
@@ -577,18 +610,51 @@ def admin():
                 save_snapshot(snapshot)
                 return redirect(url_for("admin", message="Ручний рядок збережено."))
 
-    return render_template(
-        "admin.html",
+    return render_admin_page(
         bulk_form=bulk_form,
-        bulk_groups=BULK_OLX_GROUPS,
-        bulk_snapshot_groups=fetch_manual_snapshot_groups(20),
-        entries=fetch_latest_manual_snapshots(50),
-        errors=errors,
-        filters=filters,
         form=form,
+        errors=errors,
         message=message,
-        suspicious_entries=fetch_suspicious_manual_snapshots(50),
     )
+
+
+@app.route("/admin/run-collection", methods=["POST"])
+def admin_run_collection():
+    admin_response = require_admin_access()
+    if admin_response is not None:
+        return admin_response
+
+    try:
+        summary = run_domria_collection_once()
+        collection_result = {
+            "success": not bool(summary.get("rate_limited_categories")),
+            "api_requests_made": int(summary.get("api_requests_made", 0)),
+            "categories_collected": len(summary.get("real_categories", [])),
+            "categories_skipped": len(summary.get("skipped_categories", [])),
+            "categories_missing_today": len(summary.get("missing_today", [])),
+            "last_error": (
+                "HourOverlimit: DOM.RIA stopped safely after rate limit response."
+                if summary.get("rate_limited_categories")
+                else None
+            ),
+        }
+        return render_admin_page(
+            message="DOM.RIA collection finished.",
+            collection_result=collection_result,
+        )
+    except Exception as exc:
+        collection_result = {
+            "success": False,
+            "api_requests_made": 0,
+            "categories_collected": 0,
+            "categories_skipped": 0,
+            "categories_missing_today": 0,
+            "last_error": str(exc),
+        }
+        return render_admin_page(
+            errors=["DOM.RIA collection failed. See details below."],
+            collection_result=collection_result,
+        ), 500
 
 
 @app.route("/admin/manual/<int:snapshot_id>/delete", methods=["POST"])

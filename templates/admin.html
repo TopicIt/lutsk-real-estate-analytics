@@ -37,6 +37,21 @@
 
     <section class="admin-panel" aria-label="Форма ручного рядка">
       <h2>Додати один рядок</h2>
+      <form method="post" action="{{ url_for('admin_run_collection') }}">
+        <button class="form-submit" type="submit">Запустити збір DOM.RIA зараз</button>
+      </form>
+      {% if collection_result %}
+        <div class="notice {% if collection_result.success %}notice-success{% else %}notice-error{% endif %}" role="status">
+          <p>API requests made: {{ collection_result.api_requests_made }}</p>
+          <p>Categories collected: {{ collection_result.categories_collected }}</p>
+          <p>Categories skipped: {{ collection_result.categories_skipped }}</p>
+          <p>Categories missing today: {{ collection_result.categories_missing_today }}</p>
+          {% if collection_result.last_error %}
+            <p>Last error: {{ collection_result.last_error }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
       <form class="admin-form" method="post" action="{{ url_for('admin') }}">
         <input type="hidden" name="form_kind" value="single">
         <label>
