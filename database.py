@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -71,9 +72,63 @@ ON collection_runs(finished_at);
 """
 
 
+def database_path() -> Path:
+    return Path(DATABASE_PATH)
+
+
+def database_absolute_path() -> Path:
+    return database_path().expanduser().resolve()
+
+
+def daily_snapshots_row_count() -> int:
+    with get_connection() as connection:
+        table_exists = connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'daily_snapshots'
+            LIMIT 1
+            """
+        ).fetchone()
+        if not table_exists:
+            return 0
+        return int(
+            connection.execute("SELECT COUNT(*) FROM daily_snapshots").fetchone()[0]
+        )
+
+
+def storage_diagnostics() -> dict:
+    raw_path = database_path()
+    absolute_path = database_absolute_path()
+    data_dir = Path("/data")
+    data_dir_exists = data_dir.exists()
+    data_dir_writable = data_dir_exists and data_dir.is_dir() and os.access(data_dir, os.W_OK)
+    row_count = 0
+    file_exists = False
+    file_size = 0
+
+    try:
+        init_db()
+        file_exists = absolute_path.exists()
+        file_size = absolute_path.stat().st_size if file_exists else 0
+        row_count = daily_snapshots_row_count()
+    except sqlite3.Error:
+        row_count = 0
+
+    return {
+        "database_path": str(raw_path),
+        "absolute_database_path": str(absolute_path),
+        "database_file_exists": file_exists,
+        "database_file_size": file_size,
+        "data_directory_exists": data_dir_exists,
+        "data_directory_writable": data_dir_writable,
+        "daily_snapshots_row_count": row_count,
+    }
+
+
 def get_connection() -> sqlite3.Connection:
-    Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(DATABASE_PATH)
+    database_absolute_path().parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(database_absolute_path())
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA journal_mode = WAL")
     connection.execute("PRAGMA foreign_keys = ON")

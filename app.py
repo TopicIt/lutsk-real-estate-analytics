@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from collections import defaultdict
@@ -14,6 +15,7 @@ from config import CATEGORIES, DEAL_TYPES, LOCATION_SCOPES, PROPERTY_TYPES, ROOM
 from database import (
     analytics_debug_summary,
     collection_status_summary,
+    database_absolute_path,
     delete_manual_snapshot,
     domria_status_snapshot,
     fetch_filter_options,
@@ -24,6 +26,7 @@ from database import (
     init_db,
     save_snapshot,
     save_snapshots_with_counts,
+    storage_diagnostics,
 )
 from scraper import build_manual_snapshot
 
@@ -124,6 +127,20 @@ def require_admin_access() -> Response | None:
         401,
         {"WWW-Authenticate": 'Basic realm="Admin"'},
     )
+
+
+def log_storage_diagnostics() -> None:
+    diagnostics = storage_diagnostics()
+    print(
+        "Storage diagnostics: "
+        + json.dumps(diagnostics, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def initialize_application() -> None:
+    init_db()
+    print(f"Database initialized at {database_absolute_path()}")
+    log_storage_diagnostics()
 
 
 def change_between(values: list[int], days: int) -> int | None:
@@ -670,6 +687,11 @@ def collection_status_api():
     return jsonify(collection_status_summary([category.key for category in CATEGORIES]))
 
 
+@app.route("/api/system/storage", methods=["GET"])
+def system_storage_api():
+    return jsonify(storage_diagnostics())
+
+
 @app.route("/api/analytics/debug", methods=["GET"])
 def analytics_debug_api():
     if not is_development():
@@ -679,7 +701,9 @@ def analytics_debug_api():
     return jsonify(analytics_debug_summary())
 
 
+initialize_application()
+
+
 if __name__ == "__main__":
-    init_db()
     port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
