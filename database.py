@@ -97,6 +97,22 @@ def daily_snapshots_row_count() -> int:
         )
 
 
+def database_file_info() -> dict:
+    absolute_path = database_absolute_path()
+    file_exists = absolute_path.exists()
+    stat_result = absolute_path.stat() if file_exists else None
+    return {
+        "database_path": str(database_path()),
+        "absolute_database_path": str(absolute_path),
+        "database_file_exists": file_exists,
+        "database_file_inode": getattr(stat_result, "st_ino", None) if stat_result else None,
+        "database_file_size": stat_result.st_size if stat_result else 0,
+        "railway_service_name": os.getenv("RAILWAY_SERVICE_NAME"),
+        "railway_volume_name": os.getenv("RAILWAY_VOLUME_NAME"),
+        "railway_volume_mount_path": os.getenv("RAILWAY_VOLUME_MOUNT_PATH"),
+    }
+
+
 def storage_diagnostics() -> dict:
     raw_path = database_path()
     absolute_path = database_absolute_path()
@@ -124,6 +140,47 @@ def storage_diagnostics() -> dict:
         "data_directory_writable": data_dir_writable,
         "daily_snapshots_row_count": row_count,
     }
+
+
+def storage_detailed_diagnostics() -> dict:
+    init_db()
+    details = database_file_info()
+    details["daily_snapshots_row_count"] = daily_snapshots_row_count()
+
+    with get_connection() as connection:
+        details["latest_daily_snapshots_rows"] = [
+            dict(row)
+            for row in connection.execute(
+                """
+                SELECT id, date, source, data_source
+                FROM daily_snapshots
+                ORDER BY created_at DESC, id DESC
+                LIMIT 20
+                """
+            ).fetchall()
+        ]
+        latest_domria = connection.execute(
+            """
+            SELECT id, date, source, data_source
+            FROM daily_snapshots
+            WHERE source = 'DOM.RIA' OR data_source = 'domria'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        latest_olx = connection.execute(
+            """
+            SELECT id, date, source, data_source
+            FROM daily_snapshots
+            WHERE lower(source) = 'olx'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    details["latest_domria_row"] = dict(latest_domria) if latest_domria else None
+    details["latest_olx_row"] = dict(latest_olx) if latest_olx else None
+    return details
 
 
 def get_connection() -> sqlite3.Connection:

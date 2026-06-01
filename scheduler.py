@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime
 from pathlib import Path
 import sys
@@ -11,6 +12,8 @@ from config import CATEGORIES
 from database import (
     categories_collected_today,
     count_domria_requests_last_hour,
+    daily_snapshots_row_count,
+    database_file_info,
     init_db,
     log_collection_run,
 )
@@ -23,6 +26,23 @@ DEFAULT_MAX_REQUESTS = 10
 
 def timestamp() -> str:
     return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
+def scheduler_storage_state() -> dict:
+    info = database_file_info()
+    try:
+        info["daily_snapshots_row_count"] = daily_snapshots_row_count()
+    except Exception as exc:
+        info["daily_snapshots_row_count"] = None
+        info["row_count_error"] = str(exc)
+    return info
+
+
+def print_scheduler_storage_state(label: str) -> None:
+    print(
+        f"Scheduler storage {label}: "
+        + json.dumps(scheduler_storage_state(), ensure_ascii=False, sort_keys=True)
+    )
 
 
 def collection_plan(max_requests: int = DEFAULT_MAX_REQUESTS) -> dict:
@@ -76,6 +96,7 @@ def print_plan(plan: dict) -> None:
 
 def run_once(max_requests: int = DEFAULT_MAX_REQUESTS) -> dict:
     init_db()
+    print_scheduler_storage_state("before run")
     started_at = timestamp()
     last_error = None
     summary: dict | None = None
@@ -104,6 +125,7 @@ def run_once(max_requests: int = DEFAULT_MAX_REQUESTS) -> dict:
         print(f"- missing after run: {len(summary.get('missing_today', []))}")
         if last_error:
             print(f"- last error: {last_error}")
+        print_scheduler_storage_state("after run")
         return summary
     except Exception as exc:
         finished_at = timestamp()
@@ -122,6 +144,7 @@ def run_once(max_requests: int = DEFAULT_MAX_REQUESTS) -> dict:
         print(f"- started at: {started_at}")
         print(f"- finished at: {finished_at}")
         print(f"- last error: {last_error}")
+        print_scheduler_storage_state("after failed run")
         raise
 
 

@@ -26,6 +26,7 @@ from database import (
     init_db,
     save_snapshot,
     save_snapshots_with_counts,
+    storage_detailed_diagnostics,
     storage_diagnostics,
 )
 from scraper import build_manual_snapshot
@@ -690,6 +691,11 @@ def collection_status_api():
 @app.route("/api/system/storage", methods=["GET"])
 def system_storage_api():
     return jsonify(storage_diagnostics())
+
+
+@app.route("/api/system/storage-detailed", methods=["GET"])
+def system_storage_detailed_api():
+    return jsonify(storage_detailed_diagnostics())
 
 
 @app.route("/api/analytics/debug", methods=["GET"])
