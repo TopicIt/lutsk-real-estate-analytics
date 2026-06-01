@@ -334,6 +334,7 @@ Required Railway environment variables:
 FLASK_ENV=production
 DOMRIA_API_KEY=<your Railway secret>
 ADMIN_PASSWORD=<strong admin password>
+COLLECTION_TOKEN=<strong collection trigger token>
 DATABASE_PATH=/data/real_estate.db
 ```
 
@@ -362,7 +363,48 @@ Do not commit `domria_config.json`; it is for local development only and is igno
 
 Do not configure a separate Railway cron service while the MVP uses SQLite on a Railway volume. Railway volumes are attached per service, so cron and web services can end up with different databases at the same `/data/real_estate.db` path.
 
-Use the protected `/admin` collection button for now. Revisit Railway cron after moving persistence to Postgres or another shared database.
+Use the protected `/admin` collection button or an external cron request to the web service for now. Revisit Railway cron after moving persistence to Postgres or another shared database.
+
+### External Cron
+
+External cron services can trigger collection inside the web service, which writes to the same SQLite database used by `/analytics`.
+
+Set this Railway variable on the web service:
+
+```text
+COLLECTION_TOKEN=<strong collection trigger token>
+```
+
+Trigger URL:
+
+```text
+POST https://YOUR_DOMAIN/api/collection/run
+```
+
+Authorization header:
+
+```text
+Authorization: Bearer YOUR_COLLECTION_TOKEN
+```
+
+Example curl:
+
+```bash
+curl -X POST https://YOUR_DOMAIN/api/collection/run \
+  -H "Authorization: Bearer YOUR_COLLECTION_TOKEN"
+```
+
+Good MVP options:
+
+- `cron-job.org`: schedule a daily HTTP POST to `/api/collection/run` with the bearer token header.
+- `EasyCron`: schedule a daily HTTP POST to `/api/collection/run` with the bearer token header.
+- GitHub Actions scheduled workflow: future option if you want the schedule stored in GitHub, but keep the request as an HTTP POST to the web service while SQLite remains on the web volume.
+
+Check the latest run:
+
+```text
+GET /api/collection/status
+```
 
 ## Data Notes
 

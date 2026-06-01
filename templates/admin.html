@@ -40,6 +40,7 @@
       <form method="post" action="{{ url_for('admin_run_collection') }}">
         <button class="form-submit" type="submit">Запустити збір DOM.RIA зараз</button>
       </form>
+      <p class="section-note">Автозбір можна запускати зовнішнім cron-запитом до /api/collection/run.</p>
       {% if collection_result %}
         <div class="notice {% if collection_result.success %}notice-success{% else %}notice-error{% endif %}" role="status">
           <p>API requests made: {{ collection_result.api_requests_made }}</p>

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import sys
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from flask import Flask, Response, abort, jsonify, redirect, render_template, request, url_for
@@ -143,6 +144,70 @@ def initialize_application() -> None:
     init_db()
     print(f"Database initialized at {database_absolute_path()}")
     log_storage_diagnostics()
+
+
+def collection_timestamp() -> str:
+    return datetime.now().replace(microsecond=0).isoformat(sep=" ")
+
+
+def collection_result_from_summary(
+    summary: dict,
+    *,
+    started_at: str,
+    finished_at: str,
+) -> dict:
+    last_error = (
+        "HourOverlimit: DOM.RIA stopped safely after rate limit response."
+        if summary.get("rate_limited_categories")
+        else None
+    )
+    return {
+        "success": last_error is None,
+        "api_requests_made": int(summary.get("api_requests_made", 0)),
+        "categories_collected": len(summary.get("real_categories", [])),
+        "categories_skipped": len(summary.get("skipped_categories", [])),
+        "categories_missing_today": len(summary.get("missing_today", [])),
+        "last_error": last_error,
+        "started_at": started_at,
+        "finished_at": finished_at,
+    }
+
+
+def run_collection_in_web_process() -> tuple[dict, int]:
+    started_at = collection_timestamp()
+    try:
+        summary = run_domria_collection_once()
+        finished_at = collection_timestamp()
+        return collection_result_from_summary(
+            summary,
+            started_at=started_at,
+            finished_at=finished_at,
+        ), 200
+    except Exception as exc:
+        finished_at = collection_timestamp()
+        return {
+            "success": False,
+            "api_requests_made": 0,
+            "categories_collected": 0,
+            "categories_skipped": 0,
+            "categories_missing_today": 0,
+            "last_error": str(exc),
+            "started_at": started_at,
+            "finished_at": finished_at,
+        }, 500
+
+
+def require_collection_token():
+    expected_token = os.getenv("COLLECTION_TOKEN", "")
+    authorization = request.headers.get("Authorization", "")
+    prefix = "Bearer "
+    supplied_token = authorization[len(prefix):].strip() if authorization.startswith(prefix) else ""
+
+    if not expected_token or not supplied_token:
+        return jsonify({"error": "Unauthorized"}), 401
+    if not secrets.compare_digest(supplied_token, expected_token):
+        return jsonify({"error": "Unauthorized"}), 401
+    return None
 
 
 def change_between(values: list[int], days: int) -> int | None:
@@ -624,37 +689,17 @@ def admin_run_collection():
     if admin_response is not None:
         return admin_response
 
-    try:
-        summary = run_domria_collection_once()
-        collection_result = {
-            "success": not bool(summary.get("rate_limited_categories")),
-            "api_requests_made": int(summary.get("api_requests_made", 0)),
-            "categories_collected": len(summary.get("real_categories", [])),
-            "categories_skipped": len(summary.get("skipped_categories", [])),
-            "categories_missing_today": len(summary.get("missing_today", [])),
-            "last_error": (
-                "HourOverlimit: DOM.RIA stopped safely after rate limit response."
-                if summary.get("rate_limited_categories")
-                else None
-            ),
-        }
+    collection_result, status_code = run_collection_in_web_process()
+    if status_code == 200:
         return render_admin_page(
             message="DOM.RIA collection finished.",
             collection_result=collection_result,
         )
-    except Exception as exc:
-        collection_result = {
-            "success": False,
-            "api_requests_made": 0,
-            "categories_collected": 0,
-            "categories_skipped": 0,
-            "categories_missing_today": 0,
-            "last_error": str(exc),
-        }
-        return render_admin_page(
-            errors=["DOM.RIA collection failed. See details below."],
-            collection_result=collection_result,
-        ), 500
+
+    return render_admin_page(
+        errors=["DOM.RIA collection failed. See details below."],
+        collection_result=collection_result,
+    ), status_code
 
 
 @app.route("/admin/manual/<int:snapshot_id>/delete", methods=["POST"])
@@ -752,6 +797,16 @@ def analytics_status_api():
 def collection_status_api():
     init_db()
     return jsonify(collection_status_summary([category.key for category in CATEGORIES]))
+
+
+@app.route("/api/collection/run", methods=["POST"])
+def collection_run_api():
+    token_response = require_collection_token()
+    if token_response is not None:
+        return token_response
+
+    result, status_code = run_collection_in_web_process()
+    return jsonify(result), status_code
 
 
 @app.route("/api/system/storage", methods=["GET"])
