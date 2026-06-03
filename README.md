@@ -106,7 +106,7 @@ In Railway, add them under the web service Variables tab, for example:
 
 ```text
 OLX_SALE_APARTMENTS_URL=https://www.olx.ua/uk/nedvizhimost/kvartiry/prodazha-kvartir/lutsk/
-OLX_RENT_APARTMENTS_URL=https://www.olx.ua/uk/nedvizhimost/kvartiry/arenda-kvartir/lutsk/
+OLX_RENT_APARTMENTS_URL=https://www.olx.ua/uk/nedvizhimost/kvartiry/dolgosrochnaya-arenda-kvartir/lutsk/
 ```
 
 Run a local test without writing to SQLite:
@@ -119,6 +119,15 @@ If both counts parse successfully, save them as existing OLX/manual rows:
 
 ```bash
 python olx_scraper.py --save-manual
+```
+
+The admin page also has a protected `Запустити збір OLX зараз` button that saves
+only the two MVP OLX counts as OLX/manual rows. A future external cron can call
+`POST /api/collection/run-olx` with the same bearer token style as DOM.RIA:
+
+```bash
+curl -X POST https://YOUR_DOMAIN/api/collection/run-olx \
+  -H "Authorization: Bearer YOUR_COLLECTION_TOKEN"
 ```
 
 This is intentionally separate from the DOM.RIA scheduler and from Railway cron.

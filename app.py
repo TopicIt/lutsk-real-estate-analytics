@@ -30,6 +30,7 @@ from database import (
     storage_detailed_diagnostics,
     storage_diagnostics,
 )
+from olx_scraper import collect_olx_snapshot_summary
 from scheduler import run_once as run_domria_collection_once
 from scraper import build_manual_snapshot
 
@@ -516,6 +517,7 @@ def render_admin_page(
     errors: list[str] | None = None,
     message: str | None = None,
     collection_result: dict | None = None,
+    olx_collection_result: dict | None = None,
 ):
     init_db()
     return render_template(
@@ -524,6 +526,7 @@ def render_admin_page(
         bulk_groups=BULK_OLX_GROUPS,
         bulk_snapshot_groups=fetch_manual_snapshot_groups(20),
         collection_result=collection_result,
+        olx_collection_result=olx_collection_result,
         entries=fetch_latest_manual_snapshots(50),
         errors=errors or [],
         filters=fetch_filter_options(),
@@ -705,6 +708,25 @@ def admin_run_collection():
     ), status_code
 
 
+@app.route("/admin/run-olx-collection", methods=["POST"])
+def admin_run_olx_collection():
+    admin_response = require_admin_access()
+    if admin_response is not None:
+        return admin_response
+
+    summary = collect_olx_snapshot_summary(save=True)
+    if summary["saved_rows"] > 0:
+        return render_admin_page(
+            message="OLX collection finished.",
+            olx_collection_result=summary,
+        )
+
+    return render_admin_page(
+        errors=["OLX collection failed. No trusted counts were saved."],
+        olx_collection_result=summary,
+    ), 502
+
+
 @app.route("/admin/manual/<int:snapshot_id>/delete", methods=["POST"])
 def delete_manual_entry(snapshot_id: int):
     admin_response = require_admin_access()
@@ -809,6 +831,17 @@ def collection_run_api():
         return token_response
 
     result, status_code = run_collection_in_web_process()
+    return jsonify(result), status_code
+
+
+@app.route("/api/collection/run-olx", methods=["POST"])
+def collection_run_olx_api():
+    token_response = require_collection_token()
+    if token_response is not None:
+        return token_response
+
+    result = collect_olx_snapshot_summary(save=True)
+    status_code = 200 if result["saved_rows"] > 0 else 502
     return jsonify(result), status_code
 
 

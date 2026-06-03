@@ -103,10 +103,14 @@ def parse_olx_count(html_text: str) -> int | None:
 
 def get_olx_count(url: str) -> int | None:
     try:
-        return parse_olx_count(fetch_olx_page(url))
+        html_text = fetch_olx_page(url)
     except OlxFetchError as exc:
         print(f"OLX fetch failed: {exc}")
         return None
+    parsed_count = parse_olx_count(html_text)
+    if parsed_count is None:
+        print("OLX parse failed: listing count was not found.")
+    return parsed_count
 
 
 def collect_olx_counts() -> dict:
@@ -116,51 +120,101 @@ def collect_olx_counts() -> dict:
     return results
 
 
-def print_test_results() -> dict:
+def collect_olx_snapshot_summary(save: bool = False) -> dict:
+    snapshot_date = date.today()
     results = {}
+    errors = []
+    snapshots = []
+
     for key, target in OLX_TARGETS.items():
         url = target["url"]
-        print(f"{key} URL: {url or '(not configured)'}")
-        count = get_olx_count(url)
-        results[key] = count
-        if count is None:
+        item = {
+            "key": key,
+            "url": url,
+            "count": None,
+            "saved": False,
+            "error": None,
+        }
+        try:
+            html_text = fetch_olx_page(url)
+            count = parse_olx_count(html_text)
+            if count is None:
+                item["error"] = "Listing count was not found in OLX HTML."
+            else:
+                item["count"] = count
+                snapshots.append(
+                    build_manual_snapshot(
+                        snapshot_date=snapshot_date,
+                        source_name="OLX",
+                        deal_type=target["deal_type"],
+                        property_type=target["property_type"],
+                        rooms=target["rooms"],
+                        location_scope=target["location_scope"],
+                        listings_count=count,
+                    )
+                )
+        except OlxFetchError as exc:
+            item["error"] = str(exc)
+
+        if item["error"]:
+            errors.append(f"{key}: {item['error']}")
+        results[key] = item
+
+    save_counts = {"created": 0, "updated": 0}
+    if save and snapshots:
+        init_db()
+        save_counts = save_snapshots_with_counts(snapshots)
+        saved_keys = {snapshot["deal_type"] for snapshot in snapshots}
+        for item in results.values():
+            if item["count"] is not None and item["key"].split("_", 1)[0] in saved_keys:
+                item["saved"] = True
+
+    saved_rows = save_counts["created"] + save_counts["updated"]
+    skipped_rows = len([item for item in results.values() if item["count"] is None])
+    return {
+        "success": saved_rows > 0 if save else not errors,
+        "date": snapshot_date.isoformat(),
+        "sale_count": results["sale_apartments_all"]["count"],
+        "rent_count": results["rent_apartments_all"]["count"],
+        "saved_rows": saved_rows,
+        "created_rows": save_counts["created"],
+        "updated_rows": save_counts["updated"],
+        "skipped_rows": skipped_rows,
+        "errors": errors,
+        "results": results,
+    }
+
+
+def print_test_results() -> dict:
+    summary = collect_olx_snapshot_summary(save=False)
+    for key, item in summary["results"].items():
+        print(f"{key} URL: {item['url'] or '(not configured)'}")
+        if item["count"] is None:
             print(f"{key} parsed count: failed")
+            if item["error"]:
+                print(f"{key} error: {item['error']}")
         else:
-            print(f"{key} parsed count: {count}")
-    return results
+            print(f"{key} parsed count: {item['count']}")
+    return summary
 
 
 def save_manual_counts() -> int:
-    results = collect_olx_counts()
-    failed = [key for key, count in results.items() if count is None]
-    if failed:
-        print("OLX save skipped. Could not parse trusted counts for: " + ", ".join(failed))
+    summary = collect_olx_snapshot_summary(save=True)
+    if summary["saved_rows"] == 0:
+        print("OLX save skipped. Could not parse any trusted counts.")
+        for error in summary["errors"]:
+            print(f"- {error}")
         return 1
-
-    snapshot_date = date.today()
-    snapshots = []
-    for key, count in results.items():
-        target = OLX_TARGETS[key]
-        snapshots.append(
-            build_manual_snapshot(
-                snapshot_date=snapshot_date,
-                source_name="OLX",
-                deal_type=target["deal_type"],
-                property_type=target["property_type"],
-                rooms=target["rooms"],
-                location_scope=target["location_scope"],
-                listings_count=int(count),
-            )
-        )
-
-    init_db()
-    counts = save_snapshots_with_counts(snapshots)
     print(
         "OLX manual snapshots saved: "
-        f"created {counts['created']}, updated {counts['updated']}."
+        f"created {summary['created_rows']}, updated {summary['updated_rows']}."
     )
-    for key, count in results.items():
-        print(f"- {key}: {count}")
+    print(f"- sale_apartments_all: {summary['sale_count']}")
+    print(f"- rent_apartments_all: {summary['rent_count']}")
+    if summary["errors"]:
+        print("Skipped:")
+        for error in summary["errors"]:
+            print(f"- {error}")
     return 0
 
 

@@ -53,6 +53,25 @@
         </div>
       {% endif %}
 
+      <form method="post" action="{{ url_for('admin_run_olx_collection') }}">
+        <button class="form-submit" type="submit">Запустити збір OLX зараз</button>
+      </form>
+      <p class="section-note">OLX збір зараз запускається лише вручну або захищеним POST-запитом до /api/collection/run-olx.</p>
+      {% if olx_collection_result %}
+        <div class="notice {% if olx_collection_result.success %}notice-success{% else %}notice-error{% endif %}" role="status">
+          <p>Sale apartments count: {{ olx_collection_result.sale_count if olx_collection_result.sale_count is not none else "-" }}</p>
+          <p>Rent apartments count: {{ olx_collection_result.rent_count if olx_collection_result.rent_count is not none else "-" }}</p>
+          <p>Saved rows: {{ olx_collection_result.saved_rows }}</p>
+          <p>Skipped rows: {{ olx_collection_result.skipped_rows }}</p>
+          {% if olx_collection_result.errors %}
+            <p>Errors:</p>
+            {% for error in olx_collection_result.errors %}
+              <p>{{ error }}</p>
+            {% endfor %}
+          {% endif %}
+        </div>
+      {% endif %}
+
       <form class="admin-form" method="post" action="{{ url_for('admin') }}">
         <input type="hidden" name="form_kind" value="single">
         <label>
