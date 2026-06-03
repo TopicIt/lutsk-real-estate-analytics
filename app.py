@@ -387,6 +387,7 @@ def build_all_source_series(rows: list[dict]) -> dict:
     rows = dedupe_source_rows(rows)
     labels = sorted({row["date"] for row in rows})
     datasets = []
+    totals_by_date = defaultdict(int)
 
     for key in SOURCE_ORDER:
         source_rows = [row for row in rows if source_key(row) == key]
@@ -395,6 +396,7 @@ def build_all_source_series(rows: list[dict]) -> dict:
         values_by_date = defaultdict(int)
         for row in source_rows:
             values_by_date[row["date"]] += row["listings_count"]
+            totals_by_date[row["date"]] += row["listings_count"]
         option = SOURCE_OPTIONS[key]
         datasets.append(
             {
@@ -408,14 +410,16 @@ def build_all_source_series(rows: list[dict]) -> dict:
             }
         )
 
+    combined_values = [totals_by_date[label] for label in labels]
+
     return {
         "labels": labels,
         "datasets": datasets,
         "metrics": {
-            "current": "Кілька джерел",
-            "change7": "Кілька джерел",
-            "change30": "Кілька джерел",
-            "trend": "Кілька джерел",
+            "current": combined_values[-1] if combined_values else 0,
+            "change7": change_between(combined_values, 7) or 0,
+            "change30": change_between(combined_values, 30) or 0,
+            "trend": trend_label(combined_values),
         },
         "source": {
             "data_source": "multiple",
@@ -423,7 +427,6 @@ def build_all_source_series(rows: list[dict]) -> dict:
             "status": "Окремі лінії джерел",
         },
     }
-
 
 def rows_by_date(rows: list[dict]) -> dict[str, int]:
     totals: dict[str, int] = defaultdict(int)
@@ -743,7 +746,7 @@ def analytics_api():
     property_type = request.args.get("property_type", "apartments")
     rooms = request.args.get("rooms", "all")
     location_scope = request.args.get("location_scope", "lutsk")
-    requested_source = request.args.get("data_source", "auto")
+    requested_source = request.args.get("data_source", "all")
     period = request.args.get("period", "30")
     days = PERIODS.get(period, 30)
     rows = fetch_snapshots(
@@ -755,7 +758,7 @@ def analytics_api():
         location_scope=location_scope,
     )
     availability = source_availability(rows)
-    selected_source = requested_source if requested_source in (*SOURCE_ORDER, "all") else default_source(availability)
+    selected_source = requested_source if requested_source in (*SOURCE_ORDER, "all") else "all"
 
     if selected_source == "all":
         response = build_all_source_series(rows)

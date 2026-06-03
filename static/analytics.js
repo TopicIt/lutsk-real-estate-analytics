@@ -22,6 +22,53 @@ let chart;
 let fallbackData;
 let chartJsRequested = false;
 
+function applyUrlState() {
+  const params = new URLSearchParams(window.location.search);
+  const source = params.get("data_source");
+  const dealType = params.get("deal_type");
+  const propertyType = params.get("property_type");
+  const rooms = params.get("rooms");
+  const locationScope = params.get("location_scope");
+  const period = params.get("period");
+
+  if (source && dataSourceSelect.querySelector(`option[value="${source}"]`)) {
+    dataSourceSelect.value = source;
+    sourceInitialized = true;
+  } else {
+    dataSourceSelect.value = "all";
+    sourceInitialized = false;
+  }
+
+  if (dealType && dealTypeSelect.querySelector(`option[value="${dealType}"]`)) {
+    dealTypeSelect.value = dealType;
+  }
+  if (propertyType && propertyTypeSelect.querySelector(`option[value="${propertyType}"]`)) {
+    propertyTypeSelect.value = propertyType;
+  }
+  if (rooms && roomsSelect.querySelector(`option[value="${rooms}"]`)) {
+    roomsSelect.value = rooms;
+  }
+  if (locationScope && locationScopeSelect.querySelector(`option[value="${locationScope}"]`)) {
+    locationScopeSelect.value = locationScope;
+  }
+  if (period && document.querySelector(`.period-button[data-period="${period}"]`)) {
+    selectedPeriod = period;
+    periodButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.period === period);
+    });
+  }
+}
+
+function updateUrlState() {
+  const params = new URLSearchParams();
+  params.set("deal_type", dealTypeSelect.value);
+  params.set("property_type", propertyTypeSelect.value);
+  params.set("rooms", roomsSelect.value);
+  params.set("location_scope", locationScopeSelect.value);
+  params.set("period", selectedPeriod);
+  params.set("data_source", dataSourceSelect.value || "all");
+  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+}
 function formatNumber(value) {
   return new Intl.NumberFormat("uk-UA").format(value);
 }
@@ -265,6 +312,7 @@ async function loadAnalytics() {
   setMetrics(data.metrics);
   setSource(data.source);
   updateChart(data);
+  updateUrlState();
 
   if (data.labels.length) {
     statusText.textContent = `Показано дат: ${data.labels.length}`;
@@ -309,6 +357,7 @@ dataSourceSelect.addEventListener("change", () => {
 });
 
 window.addEventListener("load", () => {
+  applyUrlState();
   loadAnalytics().catch(handleLoadError);
   loadStatusSnapshot().catch(() => {
     lastUpdateMetric.textContent = "Немає даних";
