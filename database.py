@@ -783,7 +783,7 @@ def domria_status_snapshot(category_keys: list[str]) -> dict:
     collected = categories_collected_today(category_keys)
     missing = [key for key in category_keys if key not in collected]
     with get_connection() as connection:
-        row = connection.execute(
+        domria_row = connection.execute(
             """
             SELECT created_at
             FROM daily_snapshots
@@ -793,10 +793,21 @@ def domria_status_snapshot(category_keys: list[str]) -> dict:
             LIMIT 1
             """
         ).fetchone()
+        olx_row = connection.execute(
+            """
+            SELECT created_at
+            FROM daily_snapshots
+            WHERE lower(source) = 'olx'
+              AND data_source = 'manual'
+            ORDER BY date DESC, created_at DESC
+            LIMIT 1
+            """
+        ).fetchone()
     return {
         "collected_today": collected,
         "missing_today": missing,
-        "last_successful_update": row["created_at"] if row else None,
+        "last_successful_update": domria_row["created_at"] if domria_row else None,
+        "olx_last_successful_update": olx_row["created_at"] if olx_row else None,
     }
 
 

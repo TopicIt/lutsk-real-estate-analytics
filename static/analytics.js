@@ -14,6 +14,7 @@ const domriaStatusMetric = document.querySelector("#domriaStatusMetric");
 const collectedTodayMetric = document.querySelector("#collectedTodayMetric");
 const missingTodayMetric = document.querySelector("#missingTodayMetric");
 const lastUpdateMetric = document.querySelector("#lastUpdateMetric");
+const olxLastUpdateMetric = document.querySelector("#olxLastUpdateMetric");
 const canvas = document.querySelector("#listingChart");
 
 let selectedPeriod = "30";
@@ -90,7 +91,7 @@ function formatChange(value) {
 
 function formatTimestamp(value) {
   if (!value) {
-    return "Немає даних";
+    return "No data";
   }
   const parsed = new Date(value.replace(" ", "T"));
   if (Number.isNaN(parsed.getTime())) {
@@ -102,6 +103,7 @@ function formatTimestamp(value) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Kyiv",
   }).format(parsed);
 }
 
@@ -121,6 +123,9 @@ function setStatusSnapshot(snapshot) {
   collectedTodayMetric.textContent = formatNumber(snapshot.collected_today.length);
   missingTodayMetric.textContent = formatNumber(snapshot.missing_today.length);
   lastUpdateMetric.textContent = formatTimestamp(snapshot.last_successful_update);
+  if (olxLastUpdateMetric) {
+    olxLastUpdateMetric.textContent = formatTimestamp(snapshot.olx_last_successful_update);
+  }
 }
 
 function syncRoomFilter() {
@@ -360,7 +365,10 @@ window.addEventListener("load", () => {
   applyUrlState();
   loadAnalytics().catch(handleLoadError);
   loadStatusSnapshot().catch(() => {
-    lastUpdateMetric.textContent = "Немає даних";
+    lastUpdateMetric.textContent = "No data";
+    if (olxLastUpdateMetric) {
+      olxLastUpdateMetric.textContent = "No data";
+    }
   });
   loadChartJs();
 });
