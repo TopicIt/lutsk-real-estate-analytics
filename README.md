@@ -92,10 +92,38 @@ python domria_scraper.py --check-config
 
 ## OLX Integration
 
-OLX integration is planned but not yet active. Current OLX data should still be
-entered through the manual `/admin` workflow. The placeholders
-`OLX_SALE_APARTMENTS_URL` and `OLX_RENT_APARTMENTS_URL` are reserved for a future
-approved collector and are not used by the running app today.
+OLX integration is experimental and not part of automatic daily collection yet.
+Current OLX data can still be entered through the manual `/admin` workflow.
+
+The OLX proof of concept reads only two configured search URLs:
+
+- `OLX_SALE_APARTMENTS_URL`
+- `OLX_RENT_APARTMENTS_URL`
+
+Set them locally or as Railway variables. They should point to the OLX.ua search
+pages for sale apartments in Lutsk and rent apartments in Lutsk, all rooms.
+In Railway, add them under the web service Variables tab, for example:
+
+```text
+OLX_SALE_APARTMENTS_URL=https://www.olx.ua/uk/nedvizhimost/kvartiry/prodazha-kvartir/lutsk/
+OLX_RENT_APARTMENTS_URL=https://www.olx.ua/uk/nedvizhimost/kvartiry/arenda-kvartir/lutsk/
+```
+
+Run a local test without writing to SQLite:
+
+```bash
+python olx_scraper.py --test
+```
+
+If both counts parse successfully, save them as existing OLX/manual rows:
+
+```bash
+python olx_scraper.py --save-manual
+```
+
+This is intentionally separate from the DOM.RIA scheduler and from Railway cron.
+It may stop working if OLX blocks the request or changes the search page HTML.
+When parsing fails, the command prints a clear message and skips saving bad data.
 
 ## Live Scraping
 
