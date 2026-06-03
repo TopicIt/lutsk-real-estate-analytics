@@ -12,6 +12,8 @@ DOMRIA_API_BASE_URL = "https://developers.ria.com/dom/search"
 DOMRIA_CITIES_API_URL = "https://developers.ria.com/dom/cities"
 DOMRIA_DEFAULT_STATE_ID = 18
 DOMRIA_DEFAULT_CITY_ID = 18
+OLX_SALE_APARTMENTS_URL = os.getenv("OLX_SALE_APARTMENTS_URL", "")
+OLX_RENT_APARTMENTS_URL = os.getenv("OLX_RENT_APARTMENTS_URL", "")
 
 DEAL_TYPES = {
     "sale": "Продаж",

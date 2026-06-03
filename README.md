@@ -90,6 +90,13 @@ Check configuration safely without printing the real key:
 python domria_scraper.py --check-config
 ```
 
+## OLX Integration
+
+OLX integration is planned but not yet active. Current OLX data should still be
+entered through the manual `/admin` workflow. The placeholders
+`OLX_SALE_APARTMENTS_URL` and `OLX_RENT_APARTMENTS_URL` are reserved for a future
+approved collector and are not used by the running app today.
+
 ## Live Scraping
 
 Run demo mode:
